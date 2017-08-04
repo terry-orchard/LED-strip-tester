@@ -73,10 +73,10 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
             avg_lit = np.average(roi, axis=0)  # average light level across rows of pixels of the ROI
             avg_lit = np.average(avg_lit, axis=0)  # average light level across the whole ROI
             if(avg_lit[1] >= 210):  # fully lit light level is written in red
-                cv2.putText(cropped, repr(int(avg_lit[1])), (p[0] + 5, p[1] - 2), cv2.FONT_HERSHEY_PLAIN, .5, (0, 0, avg_lit[1]))
+                cv2.putText(cropped, repr(int(avg_lit[1])), (p[0] + 5, p[1]), cv2.FONT_HERSHEY_PLAIN, .5, (0, 0, avg_lit[1]))
                 numlit += 1
             else:  # dim lights written in aqua, low lights written in blue.
-                cv2.putText(cropped, repr(int(avg_lit[1])), (p[0] + 5, p[1] - 2), cv2.FONT_HERSHEY_PLAIN, .5, (150, avg_lit[1], 0))
+                cv2.putText(cropped, repr(int(avg_lit[1])), (p[0] + 5, p[1]), cv2.FONT_HERSHEY_PLAIN, .5, (150, avg_lit[1], 0))
             roint = thresh[p[1] - 1:p[1] + 1, p[0] - 1:p[0] + 1]  # check binary light level
             if(float(float(cv2.countNonZero(roint)) / 4.0) > 0.50):  # if there are mostly white pixels, it's on.
                 numon += 1
@@ -102,9 +102,9 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
                 cv2.putText(cropped, 'BLUE', (rgb_led[0] + 20, rgb_led[1]), cv2.FONT_HERSHEY_PLAIN, 1, (250, 50, 50))  # blue
         else:  # if more black than white binary pixels, the light is off. because of this fork, "on" is a touch slower
             cv2.putText(cropped, 'OFF', (rgb_led[0] + 20, rgb_led[1]), cv2.FONT_HERSHEY_PLAIN, 1, (200, 200, 200))  # not enough light, must be OFF
-        ''' trying to figure out how many are dim..: '''
-        cv2.putText(cropped, repr(numlit), (3, 250), cv2.FONT_HERSHEY_PLAIN, 1, (20, 10, 250))  # red
-        cv2.putText(cropped, repr(numon), (3, 270), cv2.FONT_HERSHEY_PLAIN, 1, (20, 250, 10))  # green
+        # trying to figure out how many are dim..:
+        cv2.putText(cropped, repr(numlit), (3, 250), cv2.FONT_HERSHEY_PLAIN, 1, (20, 10, 250))
+        cv2.putText(cropped, repr(numon), (3, 270), cv2.FONT_HERSHEY_PLAIN, 1, (20, 250, 10))
         cv2.putText(cropped, repr(numon - numlit) + " dim~", (3, 290), cv2.FONT_HERSHEY_PLAIN, 1, (200, 200, 10))
 
     image = cropped  # this is the type of image to be displayed (cropped/thresh/hls/blur/gray)
