@@ -1,6 +1,7 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 import numpy as np
+import requests  # pip install requests
 import time
 import cv2
 # initialize camera object:
@@ -35,7 +36,7 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
     contours = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[1]
 
     ''' build list of lights '''
-    if(count < 200):  # for the first 200 frames, build up a list of lights
+    if(count < 120):  # for the first 200 frames, build up a list of lights
         for c in contours:  # go through the list of shapes
             x, y, w, h = cv2.boundingRect(c)  # bound each shape with a box
             center = (int(x + (w / 2)), int(y + (h / 2)))  # note it's rough center
@@ -55,10 +56,15 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
         ''' do some stuff once the lights are found '''
     else:  # if we've looked at enough frames (built up the LED location list)
         if(looking):  # if we *just* stopped looking do this once:
+            url = "http://10.192.58.11/api/v1/device/strategy/vars/strings/status"
+            mykey = ('vision', 'rw')
             if(len(found) == 25):  # preliminary report
+                r = requests.post(url, auth=mykey, data="{'value' : 'pass'}")
                 print(("Found all 24 white + 1 RGB for 25 total LEDs!"))  # basicaly a pass (does not account for dim)
             else:
+                r = requests.post(url, auth=mykey, data="{'value' : 'fail'}")
                 print(("Found only " + repr(len(found)) + " LEDs."))  # basically a fail (does not account for dim)
+            print((repr(r.status_code) + " " + r.reason))
             found.sort(key=lambda tup: tup[1])  # sort points top-to-bottom (by y coord)
 #            for p in found:
 #                print((repr(p)))  # print the list of points
