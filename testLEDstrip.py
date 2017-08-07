@@ -6,6 +6,7 @@ import time
 import cv2
 # initialize camera object:
 camera = PiCamera()
+camera.rotation = 180 # cable comes out of the "bottom" so rotate 180 deg
 camera.resolution = (640, 480)
 camera.framerate = 12  # turning this up too high (18+) while streaming causes glitching / more lag, can't keep up!
 # camera.exposure_mode = 'spotlight' # change exposure
@@ -21,12 +22,14 @@ found = []  # rough positions of found lights
 print("Press Q to quit, or P to pause and hold that frame for 10 seconds.")
 
 # start video stream...
-for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port=True):  # ** NOT RGB **
+for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port=True):  # * B,G,R not R,G,B *
     raw = frame.array  # make frame BGR array
     if(looking):  # "looking" is true for the first 200 frames
         prev = raw  # this is for debugging // dimness testing
     ''' pre processing '''
-    cropped = raw[40:340, 250:350]  # crop major sources of reflection out, focus on relevant area
+    # NOTE: Cropping format is [y:y+h, x:x+h] **** most other coords are taken as (x,y)
+    cropped = raw[40:340, 230:330]  # crop major sources of reflection out, focus on relevant area
+    
     gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)  # filter out color to help with light limits
     blur = cv2.GaussianBlur(gray, (5, 5), 0)  # blurring helps with the limits between light/dark
     thresh = cv2.threshold(blur, 235, 255, cv2.THRESH_BINARY)[1]  # b/w binary image
@@ -57,12 +60,14 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
     else:  # if we've looked at enough frames (built up the LED location list)
         if(looking):  # if we *just* stopped looking do this once:
             url = "http://10.192.58.11/api/v1/device/strategy/vars/strings/status"
-            mykey = ('vision', 'rw')
+            creds = ('vision','rw')
             if(len(found) == 25):  # preliminary report
-                r = requests.post(url, auth=mykey, data="{'value' : 'pass'}")
+                data = "{\"value\":\"pass\"}"
+                r = requests.post(url, data, auth=creds)
                 print(("Found all 24 white + 1 RGB for 25 total LEDs!"))  # basicaly a pass (does not account for dim)
             else:
-                r = requests.post(url, auth=mykey, data="{'value' : 'fail'}")
+                data = "{\"value\":\"fail\"}"
+                r = requests.post(url, data, auth=creds)
                 print(("Found only " + repr(len(found)) + " LEDs."))  # basically a fail (does not account for dim)
             print((repr(r.status_code) + " " + r.reason))
             found.sort(key=lambda tup: tup[1])  # sort points top-to-bottom (by y coord)
@@ -108,6 +113,7 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
                 cv2.putText(cropped, 'BLUE', (rgb_led[0] + 20, rgb_led[1]), cv2.FONT_HERSHEY_PLAIN, 1, (250, 50, 50))  # blue
         else:  # if more black than white binary pixels, the light is off. because of this fork, "on" is a touch slower
             cv2.putText(cropped, 'OFF', (rgb_led[0] + 20, rgb_led[1]), cv2.FONT_HERSHEY_PLAIN, 1, (200, 200, 200))  # not enough light, must be OFF
+
         ''' trying to figure out how many are dim..: '''
         cv2.putText(cropped, repr(numlit), (3, 250), cv2.FONT_HERSHEY_PLAIN, 1, (20, 10, 250))  # red
         cv2.putText(cropped, repr(numon), (3, 270), cv2.FONT_HERSHEY_PLAIN, 1, (20, 250, 10))  # green
