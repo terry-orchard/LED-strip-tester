@@ -6,7 +6,7 @@ import time
 import cv2
 # initialize camera object:
 camera = PiCamera()
-camera.rotation = 180 # cable comes out of the "bottom" so rotate 180 deg
+camera.rotation = 180  # cable comes out of the "bottom" so rotate 180 deg
 camera.resolution = (640, 480)
 camera.framerate = 12  # turning this up too high (18+) while streaming causes glitching / more lag, can't keep up!
 # camera.exposure_mode = 'spotlight' # change exposure
@@ -23,10 +23,12 @@ found = []  # rough positions of found lights
 # 'pass' or 'fail' will get written to http://10.192.58.11/api/v1/device/strategy/vars/strings/status
 host = "10.192.58.11"  # controller IP address
 strname = "status"  # you are free to write to and int too, just change the key:value pair in 'data' below "once the lights are found"
-creds = ('vision','rw')  # authorization key:value pair, set up in <host>/admin/keys
+creds = ('vision', 'rw')  # authorization key:value pair, set up in <host>/admin/keys
 url = "http://" + host + "/api/v1/device/strategy/vars/strings/" + strname
+lastreport = requests.get(url, auth=creds)
+print((repr(lastreport.content)[12:16]))
 # currently testing, so write that to the PAC (otherwise how do we know pass/fail isn't from the last board? or write to a table?)
-r = requests.post("http://10.192.58.11/api/v1/device/strategy/vars/strings/status", "{\"value\":\"test\"}", auth=('vision','rw'))
+r = requests.post("http://10.192.58.11/api/v1/device/strategy/vars/strings/status", "{\"value\":\"test\"}", auth=('vision', 'rw'))
 
 print("Press Q to quit, or P to pause and hold that frame for 10 seconds.")
 # start video stream...
@@ -36,8 +38,8 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
         prev = raw  # this is for debugging // dimness testing
     ''' pre processing '''
     # NOTE: Cropping format is [y:y+h, x:x+h] **** most other coords are taken as (x,y)
-    cropped = raw[40:340, 230:330]  # crop major sources of reflection out, focus on relevant area
-    
+    cropped = raw[25:350, 230:380]  # crop major sources of reflection out, focus on relevant area
+
     gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)  # filter out color to help with light limits
     blur = cv2.GaussianBlur(gray, (5, 5), 0)  # blurring helps with the limits between light/dark
     thresh = cv2.threshold(blur, 235, 255, cv2.THRESH_BINARY)[1]  # b/w binary image
@@ -47,7 +49,7 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
     contours = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[1]
 
     ''' build list of lights '''
-    if(count < 120):  # for the first 200 frames, build up a list of lights
+    if(count < 250):  # for the first 200 frames, build up a list of lights
         for c in contours:  # go through the list of shapes
             x, y, w, h = cv2.boundingRect(c)  # bound each shape with a box
             center = (int(x + (w / 2)), int(y + (h / 2)))  # note it's rough center
@@ -59,7 +61,7 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
                 else:  # check if we already have a point in *this* box
                     stored = 0  # flag for this point / LED
                     for p in found:  # go through points we already have
-                        if (p[0] + 1 >= x and p[0] - 1 <= x + w and p[1] + 2 >= y and p[1] - 2 <= y + h):
+                        if (p[0] + 2 >= x and p[0] - 2 <= x + w and p[1] + 2 >= y and p[1] - 2 <= y + h):
                             stored = 1  # if we have a point from this box already, don't store it
                     if not(stored):
                         found.append(center)  # if not, do store it!
@@ -98,8 +100,8 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
             if(float(float(cv2.countNonZero(roint)) / 4.0) > 0.50):  # if there are mostly white pixels, it's on.
                 numon += 1
 
-        if(numon == 0):  # trying to figure out at what state we can see they're all ON for light intensity test
-            cv2.imshow("prev", prev)  # display previous frame
+#        if(numon == 0):  # trying to figure out at what state we can see they're all ON for light intensity test
+#            cv2.imshow("prev", prev)  # display previous frame
 
         ''' note the color of the first LED since it's RGB '''
         rgb_led = found[0]  # the "top" light is rgb
@@ -121,9 +123,9 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
             cv2.putText(cropped, 'OFF', (rgb_led[0] + 20, rgb_led[1]), cv2.FONT_HERSHEY_PLAIN, 1, (200, 200, 200))  # not enough light, must be OFF
 
         ''' trying to figure out how many are dim..: '''
-        cv2.putText(cropped, repr(numlit), (3, 250), cv2.FONT_HERSHEY_PLAIN, 1, (20, 10, 250))  # red
-        cv2.putText(cropped, repr(numon), (3, 270), cv2.FONT_HERSHEY_PLAIN, 1, (20, 250, 10))  # green
-        cv2.putText(cropped, repr(numon - numlit) + " dim~", (3, 290), cv2.FONT_HERSHEY_PLAIN, 1, (200, 200, 10))
+        cv2.putText(cropped, repr(numlit), (3, 280), cv2.FONT_HERSHEY_PLAIN, 1, (20, 10, 250))  # red
+        cv2.putText(cropped, repr(numon), (3, 300), cv2.FONT_HERSHEY_PLAIN, 1, (20, 250, 10))  # green
+        cv2.putText(cropped, repr(numon - numlit) + " dim~", (3, 320), cv2.FONT_HERSHEY_PLAIN, 1, (200, 200, 10))
 
     image = cropped  # this is the type of image to be displayed (cropped/thresh/hls/blur/gray)
     prev = image  # this is for testing "all are off, what was the last thing we saw?"
@@ -135,5 +137,7 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
     if key == ord("p"):  # press p to pause for 10s
         time.sleep(10)
     if key == ord("q"):  # press q to quit
+        requests.post(url, "{\"value\":\"done\"}", auth=creds)
+
 #        print((repr(sequence)))
         break
