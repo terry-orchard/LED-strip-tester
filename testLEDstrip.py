@@ -19,8 +19,16 @@ looking = 1
 count = 0  # number of frames processed
 found = []  # rough positions of found lights
 
-print("Press Q to quit, or P to pause and hold that frame for 10 seconds.")
+# information for RESTful pass/fail report
+# 'pass' or 'fail' will get written to http://10.192.58.11/api/v1/device/strategy/vars/strings/status
+host = "10.192.58.11"  # controller IP address
+strname = "status"  # you are free to write to and int too, just change the key:value pair in 'data' below "once the lights are found"
+creds = ('vision','rw')  # authorization key:value pair, set up in <host>/admin/keys
+url = "http://" + host + "/api/v1/device/strategy/vars/strings/" + strname
+# currently testing, so write that to the PAC (otherwise how do we know pass/fail isn't from the last board? or write to a table?)
+r = requests.post("http://10.192.58.11/api/v1/device/strategy/vars/strings/status", "{\"value\":\"test\"}", auth=('vision','rw'))
 
+print("Press Q to quit, or P to pause and hold that frame for 10 seconds.")
 # start video stream...
 for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port=True):  # * B,G,R not R,G,B *
     raw = frame.array  # make frame BGR array
@@ -59,8 +67,6 @@ for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port
         ''' do some stuff once the lights are found '''
     else:  # if we've looked at enough frames (built up the LED location list)
         if(looking):  # if we *just* stopped looking do this once:
-            url = "http://10.192.58.11/api/v1/device/strategy/vars/strings/status"
-            creds = ('vision','rw')
             if(len(found) == 25):  # preliminary report
                 data = "{\"value\":\"pass\"}"
                 r = requests.post(url, data, auth=creds)
